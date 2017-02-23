@@ -38,6 +38,16 @@
 
 #include "init_msm8974.h"
 
+typedef enum ril_variant {
+    GSM = 0,
+    VZW,
+} ril_variant_types;
+
+static const char *ril_stinger[] = {
+    "",
+    "_vzw",
+};
+
 void cdma_properties(char const *operator_alpha,
         char const *operator_numeric,
         char const *default_network)
@@ -59,6 +69,14 @@ void gsm_properties()
     property_set("ro.telephony.default_network", "9");
 }
 
+void rild_libpath_properties(ril_variant_types ril_var)
+{
+    std::string libril_path("/system/lib/libsec-ril.so");
+    libril_path.append(ril_stinger[ril_var]);
+
+    property_set("rild.libpath", libril_path.c_str());
+}
+
 void init_target_properties()
 {
     std::string platform = property_get("ro.board.platform");
@@ -66,6 +84,7 @@ void init_target_properties()
         return;
 
     std::string bootloader = property_get("ro.bootloader");
+    ril_variant_types ril_var = GSM;
 
     if (bootloader.find("G900AZ") == 0) {
         /* klteaio - Cricket MVNO */
@@ -97,6 +116,7 @@ void init_target_properties()
         gsm_properties();
     } else if (bootloader.find("G900V") == 0) {
         /* kltevzw - SM-G900V - Verizon */
+        ril_var = VZW;
         property_set("ro.build.fingerprint", "Verizon/kltevzw/kltevzw:6.0.1/MMB29M/G900VVRS2DQA1:user/release-keys");
         property_set("ro.build.description", "kltevzw-user 6.0.1 MMB29M G900VVRS2DQA1 release-keys");
         property_set("ro.product.model", "SM-G900V");
@@ -111,6 +131,7 @@ void init_target_properties()
         gsm_properties();
     } else if (bootloader.find("S902L") == 0) {
         /* kltetfnvzw - SM-S902L - TracFone Verizon MVNO */
+        ril_var = VZW;
         property_set("ro.build.fingerprint", "samsung/kltetfnvzw/kltetfnvzw:4.4.2/KOT49H/S902LUDUAOD3:user/release-keys");
         property_set("ro.build.description", "kltetfnvzw-user 4.4.2 KOT49H S902LUDUAOD3 release-keys");
         property_set("ro.product.model", "SM-S902L");
@@ -119,6 +140,8 @@ void init_target_properties()
     } else {
         gsm_properties();
     }
+
+    rild_libpath_properties(ril_var);
 
     std::string device = property_get("ro.product.device");
     INFO("Found bootloader id %s setting build properties for %s device\n", bootloader.c_str(), device.c_str());
